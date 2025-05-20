@@ -84,7 +84,7 @@ export default function CurrentAuctions() {
 
                                 <div className="grid grid-cols-2 gap-4 text-sm mt-2">
                                     <div>
-                                        <p><strong>Reserve Price:</strong> ${a.reserve || 0}</p>
+                                        {/*<p><strong>Reserve Price:</strong> ${a.reserve || 0}</p>*/}
                                         <p><strong>Current Highest Bid:</strong> ${highestBid}</p>
                                     </div>
                                     <div>

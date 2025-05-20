@@ -10,6 +10,10 @@ export default function Auctions() {
     const [activeSubgroup, setActiveSubgroup] = useState('Auctions');
     const [activeTab, setActiveTab] = useState('List');
     const [message, setMessage] = useState('');
+    const [openBidIndex, setOpenBidIndex] = useState(null);
+    const [selectedAuctionId, setSelectedAuctionId] = useState('');
+    const [editForm, setEditForm] = useState({});
+
 
     const [auctionForm, setAuctionForm] = useState({
         name: '',
@@ -117,6 +121,7 @@ export default function Auctions() {
             formData.append('biddingStatus', auctionForm.biddingStatus);
             formData.append('reserve', auctionForm.reserve);
             formData.append('startingBid', auctionForm.startingBid);
+            formData.append('buyNowPrice', auctionForm.buyNowPrice || 0);
             formData.append('detailDescription', auctionForm.detailDescription);
             formData.append('termsId', auctionForm.termsId);
 
@@ -142,6 +147,40 @@ export default function Auctions() {
         }
     };
 
+
+    const handleEditSelect = (e) => {
+        const id = e.target.value;
+        setSelectedAuctionId(id);
+        const auction = auctions.find(a => a._id === id);
+        if (auction) {
+            setEditForm({
+                name: auction.name,
+                detailDescription: auction.detailDescription,
+                reserve: auction.reserve,
+                buyNowPrice: auction.buyNowPrice,
+                startTime: auction.startTime ? new Date(auction.startTime).toISOString().slice(0, 16) : '',
+                endTime: auction.endTime ? new Date(auction.endTime).toISOString().slice(0, 16) : '',
+                biddingStatus: auction.biddingStatus
+            });
+        }
+    };
+
+    const handleEditChange = (e) => {
+        const { name, value } = e.target;
+        setEditForm(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleEditSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            await api.put(`/api/admin/auctions/${selectedAuctionId}`, editForm);
+            setMessage('Auction updated successfully.');
+        } catch {
+            setMessage('Failed to update auction.');
+        }
+    };
+
+
     const renderTabContent = () => {
         if (activeSubgroup === 'Auctions') {
             if (activeTab === 'List') {
@@ -153,17 +192,60 @@ export default function Auctions() {
                                 <th className="p-2">Status</th>
                                 <th className="p-2">Published</th>
                                 <th className="p-2">Private</th>
+                                <th className="p-2">Reserve</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {auctions.map((a) => (
-                                <tr key={a._id} className="border-t">
-                                    <td className="p-2">{a.name}</td>
-                                    <td className="p-2">{a.status}</td>
-                                    <td className="p-2">{a.published ? 'Yes' : 'No'}</td>
-                                    <td className="p-2">{a.private ? 'Yes' : 'No'}</td>
-                                </tr>
+                            {auctions.map((a, i) => (
+                                <React.Fragment key={a._id}>
+                                    <tr className="border-t">
+                                        <td className="p-2">{a.name}</td>
+                                        <td className="p-2">{a.biddingStatus}</td>
+                                        <td className="p-2">{a.startTime ? new Date(a.startTime).toLocaleString() : 'N/A'}</td>
+                                        <td className="p-2">{a.endTime ? new Date(a.endTime).toLocaleString() : 'N/A'}</td>
+                                        <td className="p-2">${a.reserve || 0}</td>
+                                        <td className="p-2">
+                                            <button
+                                                className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-sm"
+                                                onClick={() => setOpenBidIndex(openBidIndex === i ? null : i)}
+                                            >
+                                                {openBidIndex === i ? 'Hide Bids' : 'View Bids'}
+                                            </button>
+                                        </td>
+                                    </tr>
+
+                                    {openBidIndex === i && a.bidHistory && (
+                                        <tr className="bg-gray-50">
+                                            <td colSpan={6} className="p-4">
+                                                <h4 className="font-semibold mb-2">Bid History</h4>
+                                                {a.bidHistory.length > 0 ? (
+                                                    <table className="w-full text-sm border">
+                                                        <thead className="bg-gray-200">
+                                                            <tr>
+                                                                <th className="p-2 text-left">User</th>
+                                                                <th className="p-2 text-left">Amount</th>
+                                                                <th className="p-2 text-left">Time</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {[...a.bidHistory].reverse().map((b, idx) => (
+                                                                <tr key={idx} className="border-t">
+                                                                    <td className="p-2">{b.userId?.firstName || 'N/A'} {b.userId?.lastName || ''}</td>
+                                                                    <td className="p-2">${b.amount}</td>
+                                                                    <td className="p-2">{new Date(b.time || b.createdAt).toLocaleString()}</td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                ) : (
+                                                    <p>No bids yet.</p>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    )}
+                                </React.Fragment>
                             ))}
+
                         </tbody>
                     </table>
                 );
@@ -190,14 +272,23 @@ export default function Auctions() {
                         </div>
 
                         <input
-                            type="number"
                             name="startingBid"
-                            value={auctionForm.startingBid}
-                            onChange={handleAuctionFormChange}
-                            placeholder="Starting bid amount"
-                            required
+                            type="number"
+                            value={auctionForm.startingBid || ''}
+                            onChange={handleAuctionChange}
+                            placeholder="Starting bid amount ($)"
                             className="border p-2 rounded"
                         />
+
+                        <input
+                            type="number"
+                            name="buyNowPrice"
+                            value={auctionForm.buyNowPrice || ''}
+                            onChange={handleAuctionChange}
+                            placeholder="Buy It Now Price"
+                            className="border p-2 rounded"
+                        />
+
 
                         {/* SECTION: Timing */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -346,6 +437,39 @@ export default function Auctions() {
                 );
             }
 
+            if (activeTab === 'Edit') {
+                return (
+                    <div className="space-y-4">
+                        <h2 className="text-xl font-semibold">Edit Auction</h2>
+                        <select onChange={handleEditSelect} value={selectedAuctionId} className="border p-2 rounded w-full">
+                            <option value="">Select an Auction</option>
+                            {auctions.map(a => (
+                                <option key={a._id} value={a._id}>{a.name}</option>
+                            ))}
+                        </select>
+
+                        {selectedAuctionId && (
+                            <form onSubmit={handleEditSubmit} className="grid gap-4">
+                                <input name="name" value={editForm.name || ''} onChange={handleEditChange} placeholder="Auction Name" className="border p-2 rounded" />
+                                <textarea name="detailDescription" value={editForm.detailDescription || ''} onChange={handleEditChange} placeholder="Description" className="border p-2 rounded" />
+                                <input name="reserve" type="number" value={editForm.reserve || ''} onChange={handleEditChange} placeholder="Reserve Price" className="border p-2 rounded" />
+                                <input name="buyNowPrice" type="number" value={editForm.buyNowPrice || ''} onChange={handleEditChange} placeholder="Buy Now Price" className="border p-2 rounded" />
+                                <input name="startTime" type="datetime-local" value={editForm.startTime} onChange={handleEditChange} className="border p-2 rounded" />
+                                <input name="endTime" type="datetime-local" value={editForm.endTime} onChange={handleEditChange} className="border p-2 rounded" />
+                                <select name="biddingStatus" value={editForm.biddingStatus || ''} onChange={handleEditChange} className="border p-2 rounded">
+                                    <option value="Starting Soon">Starting Soon</option>
+                                    <option value="Accepting Bids">Accepting Bids</option>
+                                    <option value="Paused">Paused</option>
+                                    <option value="Closed">Closed</option>
+                                </select>
+                                <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded">Save Changes</button>
+                            </form>
+                        )}
+                    </div>
+                );
+            }
+
+
 
         }
         if (activeSubgroup === 'Terms & Conditions') {
@@ -368,7 +492,7 @@ export default function Auctions() {
                 ))}
             </div>
             <div className="flex gap-2 mb-4">
-                {['List', 'Create', 'Export'].map((tab) => (
+                {['List', 'Create', 'Edit', 'Export'].map((tab) => (
                     <button key={tab} onClick={() => setActiveTab(tab)} className={`px-3 py-1 rounded text-sm ${activeTab === tab ? 'bg-blue-600 text-white' : 'bg-white border'}`}>
                         {tab}
                     </button>
@@ -379,5 +503,6 @@ export default function Auctions() {
                 {renderTabContent()}
             </div>
         </div>
+
     );
 }

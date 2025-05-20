@@ -20,6 +20,7 @@ export default function AuctionDetail() {
     const [selectedIndex, setSelectedIndex] = useState(0);
     const [bidError, setBidError] = useState('');
     const [customBid, setCustomBid] = useState('');
+    const [confirmingBuyNow, setConfirmingBuyNow] = useState(false);
 
     const API_BASE = 'https://auction-website-server-production.up.railway.app';
 
@@ -109,6 +110,21 @@ export default function AuctionDetail() {
         }
     };
 
+
+    const handleBuyNow = async () => {
+        if (!user) return alert('Login required');
+        try {
+            const res = await api.post(`/api/admin/auctions/${id}/buy-now`, {
+                userId: user.id
+            });
+            alert('You bought the item!');
+            window.location.reload();
+        } catch (err) {
+            alert('Buy Now failed: ' + (err.response?.data || err.message));
+        }
+    };
+
+
     if (loading) return <p className="p-6">Loading auction...</p>;
     if (!auction) return <p className="p-6 text-red-600">Auction not found</p>;
 
@@ -147,7 +163,7 @@ export default function AuctionDetail() {
 
                 <div className="grid md:grid-cols-2 gap-6 text-sm">
                     <div>
-                        <p><strong>Reserve Price:</strong> ${auction.reserve}</p>
+                        {/*<p><strong>Reserve Price:</strong> ${auction.reserve}</p>*/}
                         <p><strong>Current Highest Bid:</strong> ${highestBid}</p>
                         <p><strong>Next Increment:</strong> ${getIncrementForPrice(auction.currentPrice || 0)}</p>
 
@@ -189,6 +205,24 @@ export default function AuctionDetail() {
                     <p className="text-red-600 font-semibold mt-4">Please login to place a bid.</p>
                 )}
 
+                {auction.buyNowPrice > 0 && !auction.isSold && (
+                    <div className="mt-4">
+                        <p className="text-green-700 font-bold">Buy It Now: ${auction.buyNowPrice}</p>
+                        {user ? (
+                            <button
+                                className="mt-2 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded"
+                                onClick={() => setConfirmingBuyNow(true)}
+                            >
+                                Buy It Now
+                            </button>
+                        ) : (
+                            <p className="text-sm text-red-600 mt-2">Please login to buy instantly.</p>
+                        )}
+                    </div>
+                )}
+
+
+
             </div>
 
 
@@ -227,35 +261,43 @@ export default function AuctionDetail() {
                 </div>
             )}
 
-            <div className="mt-8 flex justify-center">
-                <div className="w-full max-w-3xl">
-                    <h2 className="text-xl font-semibold mb-4 text-center">Bid History</h2>
-                    {auction.bidHistory && auction.bidHistory.length > 0 ? (
-                        <table className="w-full border text-sm shadow-md rounded overflow-hidden">
-                            <thead className="bg-gray-100">
-                                <tr>
-                                    <th className="border p-3 text-left">User</th>
-                                    <th className="border p-3 text-left">Bid Amount</th>
-                                    <th className="border p-3 text-left">Time</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {[...auction.bidHistory].reverse().map((bid, idx) => (
-                                    <tr key={idx} className="hover:bg-gray-50">
-                                        <td className="border p-3">{bid.userId?.firstName} {bid.userId?.lastName}</td>
-                                        <td className="border p-3 font-semibold">${bid.amount}</td>
-                                        <td className="border p-3">{new Date(bid.time || bid.createdAt).toLocaleString()}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    ) : (
-                        <p className="text-gray-500 text-center">No bids yet.</p>
-                    )}
+            {confirmingBuyNow && (
+                <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
+                    <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full">
+                        <h2 className="text-xl font-semibold mb-4">Confirm Purchase</h2>
+                        <p className="mb-6 text-gray-700">
+                            You are about to <strong>Buy Out</strong> the auction.<br />
+                            Are you sure you want to proceed?
+                        </p>
+                        <div className="flex justify-end gap-4">
+                            <button
+                                className="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded"
+                                onClick={() => setConfirmingBuyNow(false)}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+                                onClick={async () => {
+                                    try {
+                                        const res = await api.post(`/api/admin/auctions/${id}/buy-now`, {
+                                            userId: user.id
+                                        });
+                                        alert('You bought the item!');
+                                        window.location.reload();
+                                    } catch (err) {
+                                        alert('Buy Now failed: ' + (err.response?.data || err.message));
+                                    } finally {
+                                        setConfirmingBuyNow(false);
+                                    }
+                                }}
+                            >
+                                Yes, Proceed
+                            </button>
+                        </div>
+                    </div>
                 </div>
-            </div>
-
-
+            )}
 
 
 
