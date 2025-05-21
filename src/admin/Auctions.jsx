@@ -13,6 +13,11 @@ export default function Auctions() {
     const [openBidIndex, setOpenBidIndex] = useState(null);
     const [selectedAuctionId, setSelectedAuctionId] = useState('');
     const [editForm, setEditForm] = useState({});
+    const [terms, setTerms] = useState([]);
+    const [selectedTermId, setSelectedTermId] = useState('');
+    const [termForm, setTermForm] = useState({ title: '', content: '' });
+    const [expandedTermIndex, setExpandedTermIndex] = useState(null);
+
 
 
     const [auctionForm, setAuctionForm] = useState({
@@ -48,13 +53,20 @@ export default function Auctions() {
                     const res = await api.get('/api/admin/auctions');
                     setAuctions(res.data);
                 }
+
+                if (activeSubgroup === 'Terms & Conditions') {
+                    api.get('/api/admin/terms')
+                        .then(res => setTerms(res.data))
+                        .catch(err => console.error('Failed to load terms:', err));
+                }
             } catch (err) {
-                console.error(err);
+                console.error('Data fetch error:', err);
             }
         };
 
         fetchData();
     }, [activeSubgroup, activeTab]);
+
 
     const handleAuctionFormChange = (e) => {
         const { name, value } = e.target;
@@ -65,19 +77,19 @@ export default function Auctions() {
     };
 
 
-    const placeBid = async (auctionId, amount) => {
-        try {
-            const res = await api.post(`/api/admin/auctions/${auctionId}/bid`, {
-                userId: 'mock-user-id', // Replace with actual user ID
-                amount
-            });
+    //const placeBid = async (auctionId, amount) => {
+    //    try {
+    //        const res = await api.post(`/api/admin/auctions/${auctionId}/bid`, {
+    //            userId: 'mock-user-id', // Replace with actual user ID
+    //            amount
+    //        });
 
-            // Emit bid to other clients
-            socket.emit('placeBid', { auctionId, amount });
-        } catch (err) {
-            console.error(err);
-        }
-    };
+    //        // Emit bid to other clients
+    //        socket.emit('placeBid', { auctionId, amount });
+    //    } catch (err) {
+    //        console.error(err);
+    //    }
+    //};
 
     useEffect(() => {
         // Listen for new bid broadcast
@@ -181,6 +193,32 @@ export default function Auctions() {
     };
 
 
+    const handleCreateTerms = async (e) => {
+        e.preventDefault();
+        try {
+            const res = await api.post('/api/admin/terms', newTerms);
+            setTerms([...terms, res.data]);
+            setNewTerms({ title: '', content: '' });
+            setTermsTab('List');
+        } catch {
+            alert('Failed to create terms');
+        }
+    };
+
+    const handleEditTerms = async (e) => {
+        e.preventDefault();
+        try {
+            const res = await api.put(`/api/admin/terms/${selectedTermId}`, editTerms);
+            setTerms(terms.map(t => (t._id === selectedTermId ? res.data : t)));
+            setSelectedTermId('');
+            setEditTerms({ title: '', content: '' });
+            setTermsTab('List');
+        } catch {
+            alert('Failed to update terms');
+        }
+    };
+
+
     const renderTabContent = () => {
         if (activeSubgroup === 'Auctions') {
             if (activeTab === 'List') {
@@ -265,9 +303,18 @@ export default function Auctions() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <input name="reserve" type="number" value={auctionForm.reserve} onChange={handleAuctionChange} placeholder="Reserve Price ($)" className="border p-2 rounded" />
                             <input name="sortIndex" type="number" value={auctionForm.sortIndex} onChange={handleAuctionChange} placeholder="Sort Index" className="border p-2 rounded" />
-                            <select name="termsId" value={auctionForm.termsId} onChange={handleAuctionChange} className="border p-2 rounded">
+                            <select
+                                name="termsId"
+                                value={auctionForm.termsId}
+                                onChange={handleAuctionChange}
+                                className="border p-2 rounded"
+                            >
                                 <option value="">Select Terms</option>
-                                {/* Dynamically populate from backend later */}
+                                {terms.map(term => (
+                                    <option key={term._id} value={term._id}>
+                                        {term.title}
+                                    </option>
+                                ))}
                             </select>
                         </div>
 
@@ -473,10 +520,126 @@ export default function Auctions() {
 
         }
         if (activeSubgroup === 'Terms & Conditions') {
-            return <p>Terms & Conditions tab coming soon.</p>;
-        }
-        if (activeSubgroup === 'Bid History') {
-            return <p>Bid History tab coming soon.</p>;
+            if (activeTab === 'List') {
+                return (
+                    <div className="space-y-4">
+                        <h2 className="text-xl font-semibold">Terms & Conditions</h2>
+                        {terms.map((term, index) => (
+                            <div key={term._id} className="border rounded p-4 bg-white shadow">
+                                <div
+                                    onClick={() => setExpandedTermIndex(expandedTermIndex === index ? null : index)}
+                                    className="cursor-pointer font-bold text-blue-600"
+                                >
+                                    {term.title}
+                                </div>
+                                {expandedTermIndex === index && (
+                                    <p className="mt-2 text-sm whitespace-pre-wrap">{term.content}</p>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                );
+            }
+
+            if (activeTab === 'Create') {
+                return (
+                    <div className="space-y-4">
+                        <h2 className="text-xl font-semibold">Create Terms & Conditions</h2>
+                        <form
+                            onSubmit={async (e) => {
+                                e.preventDefault();
+                                try {
+                                    await api.post('/api/admin/terms', termForm);
+                                    const res = await api.get('/api/admin/terms');
+                                    setTerms(res.data);
+                                    setTermForm({ title: '', content: '' });
+                                    alert('Terms created.');
+                                } catch {
+                                    alert('Failed to create terms.');
+                                }
+                            }}
+                            className="grid gap-4"
+                        >
+                            <input
+                                name="title"
+                                placeholder="Title"
+                                value={termForm.title}
+                                onChange={(e) => setTermForm({ ...termForm, title: e.target.value })}
+                                className="border p-2 rounded"
+                            />
+                            <textarea
+                                name="content"
+                                placeholder="Full Content"
+                                value={termForm.content}
+                                onChange={(e) => setTermForm({ ...termForm, content: e.target.value })}
+                                className="border p-2 rounded h-40"
+                            />
+                            <button className="bg-green-600 text-white px-4 py-2 rounded" type="submit">
+                                Save Terms
+                            </button>
+                        </form>
+                    </div>
+                );
+            }
+
+            if (activeTab === 'Edit') {
+                return (
+                    <div className="space-y-4">
+                        <h2 className="text-xl font-semibold">Edit Terms & Conditions</h2>
+                        <select
+                            value={selectedTermId}
+                            onChange={(e) => {
+                                const term = terms.find(t => t._id === e.target.value);
+                                setSelectedTermId(term?._id || '');
+                                setTermForm({ title: term?.title || '', content: term?.content || '' });
+                            }}
+                            className="border p-2 rounded w-full"
+                        >
+                            <option value="">Select a Terms Document</option>
+                            {terms.map(term => (
+                                <option key={term._id} value={term._id}>
+                                    {term.title}
+                                </option>
+                            ))}
+                        </select>
+
+                        {selectedTermId && (
+                            <form
+                                onSubmit={async (e) => {
+                                    e.preventDefault();
+                                    try {
+                                        await api.put(`/api/admin/terms/${selectedTermId}`, termForm);
+                                        const res = await api.get('/api/admin/terms');
+                                        setTerms(res.data);
+                                        alert('Terms updated.');
+                                    } catch {
+                                        alert('Failed to update terms.');
+                                    }
+                                }}
+                                className="grid gap-4"
+                            >
+                                <input
+                                    name="title"
+                                    placeholder="Title"
+                                    value={termForm.title}
+                                    onChange={(e) => setTermForm({ ...termForm, title: e.target.value })}
+                                    className="border p-2 rounded"
+                                />
+                                <textarea
+                                    name="content"
+                                    placeholder="Full Content"
+                                    value={termForm.content}
+                                    onChange={(e) => setTermForm({ ...termForm, content: e.target.value })}
+                                    className="border p-2 rounded h-40"
+                                />
+                                <button className="bg-blue-600 text-white px-4 py-2 rounded" type="submit">
+                                    Update Terms
+                                </button>
+                            </form>
+                        )}
+                    </div>
+                );
+            }
         }
         return <p>Select a tab.</p>;
     };
@@ -485,7 +648,7 @@ export default function Auctions() {
         <div className="px-6 py-6">
             <h1 className="text-3xl font-bold mb-6">Auctions</h1>
             <div className="flex gap-3 mb-4">
-                {['Auctions', 'Terms & Conditions', 'Bid History'].map((group) => (
+                {['Auctions', 'Terms & Conditions'].map((group) => (
                     <button key={group} onClick={() => { setActiveSubgroup(group); setActiveTab('List'); }} className={`px-4 py-2 rounded ${activeSubgroup === group ? 'bg-blue-700 text-white' : 'bg-white border'}`}>
                         {group}
                     </button>

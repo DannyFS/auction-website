@@ -21,6 +21,8 @@ export default function AuctionDetail() {
     const [bidError, setBidError] = useState('');
     const [customBid, setCustomBid] = useState('');
     const [confirmingBuyNow, setConfirmingBuyNow] = useState(false);
+    const [showTerms, setShowTerms] = useState(false);
+
 
     const API_BASE = 'https://auction-website-server-production.up.railway.app';
 
@@ -181,6 +183,23 @@ export default function AuctionDetail() {
                     <h2 className="text-xl font-semibold mt-6">Description</h2>
                     <p>{auction.detailDescription || auction.simpleDescription}</p>
                 </div>
+
+                {auction.termsId && auction.termsId.title && (
+                    <div className="mt-6">
+                        <div
+                            onClick={() => setShowTerms(!showTerms)}
+                            className="text-blue-700 font-semibold cursor-pointer underline"
+                        >
+                            Terms & Conditions: {auction.termsId.title}
+                        </div>
+                        {showTerms && auction.termsId.content && (
+                            <div className="mt-2 text-sm whitespace-pre-wrap bg-gray-50 p-4 rounded border">
+                                {auction.termsId.content}
+                            </div>
+                        )}
+                    </div>
+                )}
+
 
                 {user ? (
                     <div className="mt-4 space-y-2">
