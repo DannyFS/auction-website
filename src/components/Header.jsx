@@ -22,7 +22,6 @@ export default function Header() {
     const { user, login, logout } = useAuth();
     const navigate = useNavigate();
 
-
     useEffect(() => {
         if (isRegistering) {
             api.get('https://auction-website-server-production.up.railway.app/api/admin/website/questionnaire')
@@ -30,8 +29,6 @@ export default function Header() {
                 .catch(err => console.error('Failed to load questionnaire:', err));
         }
     }, [isRegistering]);
-
-
 
     const handleLoginChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -75,7 +72,6 @@ export default function Header() {
         try {
             await api.post('https://auction-website-server-production.up.railway.app/api/admin/users', userData);
 
-            // Auto-login after registration
             const res = await api.post('https://auction-website-server-production.up.railway.app/api/admin/users/login', {
                 email: form.email,
                 password: form.password
@@ -93,22 +89,27 @@ export default function Header() {
 
     return (
         <>
-            <div className="w-full bg-[#212f3d] text-white text-sm flex justify-between px-6 py-2">
-                <div>Bid Boldly, Win Brilliantly</div>
-                <div className="flex gap-4 items-center">
+            <div className="w-full bg-[#212f3d] text-white text-sm px-4 py-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0 text-center sm:text-left">
+                <div className="text-xs sm:text-sm">Bid Boldly, Win Brilliantly</div>
+                <div className="flex flex-wrap justify-center sm:justify-end items-center gap-3 text-sm">
                     <a href="/" className="hover:underline">Home</a>
                     <a href="tel:+18039843906" className="hover:underline">(803) 984-3906</a>
                     <a href="/contact" className="hover:underline">Contact</a>
                     {user ? (
-                        <button onClick={logout} className="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-xs">Logout</button>
+                        <button onClick={logout} className="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-xs">
+                            Logout
+                        </button>
                     ) : (
-                        <button onClick={() => setShowLogin(true)} className="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-xs">Login</button>
+                        <button onClick={() => setShowLogin(true)} className="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-xs">
+                            Login
+                        </button>
                     )}
                 </div>
             </div>
 
+            {/* LOGIN / REGISTER MODAL */}
             {showLogin && (
-                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 px-4">
                     <div className="bg-white text-black p-6 rounded shadow-lg w-full max-w-sm space-y-4 relative">
                         <button className="absolute top-2 right-3 text-gray-500" onClick={() => setShowLogin(false)}>&times;</button>
                         <h2 className="text-lg font-bold">{isRegistering ? 'Create Account' : 'Login'}</h2>
@@ -141,7 +142,6 @@ export default function Header() {
                                                 }
                                             />
                                         ))}
-
                                     </div>
                                 )}
 
@@ -167,3 +167,4 @@ export default function Header() {
         </>
     );
 }
+
